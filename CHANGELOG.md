@@ -6,6 +6,18 @@
 
 * **promtail:** fix parser for azureeventhubs message without time field ([#14218](https://github.com/grafana/loki/pull/14218))
 
+## [3.3.2](https://github.com/grafana/loki/compare/v3.3.1...v3.3.2) (2024-12-09)
+
+
+### Features
+
+* present DF bytes values in queryable format (backport release-3.3.x) ([#15320](https://github.com/grafana/loki/issues/15320)) ([218ecbb](https://github.com/grafana/loki/commit/218ecbb142154f6d07e8b517d20ad660510c49aa))
+
+
+### Bug Fixes
+
+* enable metric aggregation in `loki-local-config.yaml` (backport release-3.3.x) ([#15319](https://github.com/grafana/loki/issues/15319)) ([635f04d](https://github.com/grafana/loki/commit/635f04d3deafaadac9e28ff2a11ae89f65b13c00))
+
 ## [3.3.1](https://github.com/grafana/loki/compare/v3.3.0...v3.3.1) (2024-12-04)
 
 
