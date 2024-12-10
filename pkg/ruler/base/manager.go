@@ -216,25 +216,32 @@ func (r *DefaultMultiTenantManager) getOrCreateNotifier(userID string) (*notifie
 
 	reg := prometheus.WrapRegistererWith(prometheus.Labels{"user": userID}, r.registry)
 	reg = prometheus.WrapRegistererWithPrefix(r.metricsNamespace+"_", reg)
-	n = newRulerNotifier(&notifier.Options{
-		QueueCapacity: r.cfg.NotificationQueueCapacity,
-		Registerer:    reg,
-		Do: func(ctx context.Context, client *http.Client, req *http.Request) (*http.Response, error) {
-			// Note: The passed-in context comes from the Prometheus notifier
-			// and does *not* contain the userID. So it needs to be added to the context
-			// here before using the context to inject the userID into the HTTP request.
-			ctx = user.InjectOrgID(ctx, userID)
-			if err := user.InjectOrgIDIntoHTTPRequest(ctx, req); err != nil {
-				return nil, err
-			}
-			// Jaeger complains the passed-in context has an invalid span ID, so start a new root span
-			sp := ot.GlobalTracer().StartSpan("notify", ot.Tag{Key: "organization", Value: userID})
-			defer sp.Finish()
-			ctx = ot.ContextWithSpan(ctx, sp)
-			_ = ot.GlobalTracer().Inject(sp.Context(), ot.HTTPHeaders, ot.HTTPHeadersCarrier(req.Header))
-			return ctxhttp.Do(ctx, client, req)
+	n, err := newRulerNotifier(
+		&notifier.Options{
+			QueueCapacity: r.cfg.NotificationQueueCapacity,
+			Registerer:    reg,
+			Do: func(ctx context.Context, client *http.Client, req *http.Request) (*http.Response, error) {
+				// Note: The passed-in context comes from the Prometheus notifier
+				// and does *not* contain the userID. So it needs to be added to the context
+				// here before using the context to inject the userID into the HTTP request.
+				ctx = user.InjectOrgID(ctx, userID)
+				if err := user.InjectOrgIDIntoHTTPRequest(ctx, req); err != nil {
+					return nil, err
+				}
+				// Jaeger complains the passed-in context has an invalid span ID, so start a new root span
+				sp := ot.GlobalTracer().StartSpan("notify", ot.Tag{Key: "organization", Value: userID})
+				defer sp.Finish()
+				ctx = ot.ContextWithSpan(ctx, sp)
+				_ = ot.GlobalTracer().Inject(sp.Context(), ot.HTTPHeaders, ot.HTTPHeadersCarrier(req.Header))
+				return ctxhttp.Do(ctx, client, req)
+			},
 		},
-	}, log.With(r.logger, "user", userID))
+		log.With(r.logger, "user", userID),
+		r.registry,
+	)
+	if err != nil {
+		return nil, err
+	}
 
 	n.run()
 

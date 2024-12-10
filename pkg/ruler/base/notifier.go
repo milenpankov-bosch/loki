@@ -26,18 +26,8 @@ import (
 // TODO: Instead of using the same metrics for all notifiers,
 // should we have separate metrics for each discovery.NewManager?
 var (
-	sdMetrics map[string]discovery.DiscovererMetrics
-
 	srvDNSregexp = regexp.MustCompile(`^_.+._.+`)
 )
-
-func init() {
-	var err error
-	sdMetrics, err = discovery.CreateAndRegisterSDMetrics(prometheus.DefaultRegisterer)
-	if err != nil {
-		panic(err)
-	}
-}
 
 // rulerNotifier bundles a notifier.Manager together with an associated
 // Alertmanager service discovery manager and handles the lifecycle
@@ -50,14 +40,18 @@ type rulerNotifier struct {
 	logger    gklog.Logger
 }
 
-func newRulerNotifier(o *notifier.Options, l gklog.Logger) *rulerNotifier {
+func newRulerNotifier(o *notifier.Options, l gklog.Logger, r prometheus.Registerer) (*rulerNotifier, error) {
+	sdMetrics, err := discovery.CreateAndRegisterSDMetrics(r)
+	if err != nil {
+		return nil, err
+	}
 	sdCtx, sdCancel := context.WithCancel(context.Background())
 	return &rulerNotifier{
 		notifier:  notifier.NewManager(o, l),
 		sdCancel:  sdCancel,
 		sdManager: discovery.NewManager(sdCtx, l, util.NoopRegistry{}, sdMetrics),
 		logger:    l,
-	}
+	}, nil
 }
 
 // run starts the notifier. This function doesn't block and returns immediately.

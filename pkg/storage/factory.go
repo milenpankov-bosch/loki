@@ -627,16 +627,18 @@ func NewBucketClient(storageConfig Config) (index.BucketClient, error) {
 
 type ClientMetrics struct {
 	AzureMetrics azure.BlobStorageMetrics
+	registerer   prometheus.Registerer
 }
 
-func NewClientMetrics() ClientMetrics {
+func NewClientMetrics(r prometheus.Registerer) ClientMetrics {
 	return ClientMetrics{
-		AzureMetrics: azure.NewBlobStorageMetrics(),
+		registerer:   r,
+		AzureMetrics: azure.NewBlobStorageMetrics(r),
 	}
 }
 
 func (c *ClientMetrics) Unregister() {
-	c.AzureMetrics.Unregister()
+	c.AzureMetrics.Unregister(c.registerer)
 }
 
 // NewObjectClient makes a new StorageClient with the prefix in the front.

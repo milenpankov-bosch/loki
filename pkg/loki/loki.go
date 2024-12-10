@@ -28,6 +28,8 @@ import (
 	"github.com/grafana/dskit/signals"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
+	"github.com/prometheus/client_golang/prometheus/collectors/version"
 	"google.golang.org/grpc/health/grpc_health_v1"
 
 	"github.com/grafana/loki/v3/pkg/analytics"
@@ -398,15 +400,28 @@ type Loki struct {
 	Metrics *server.Metrics
 
 	UsageTracker push.UsageTracker
+
+	Registerer *prometheus.Registry
 }
 
 // New makes a new Loki.
 func New(cfg Config) (*Loki, error) {
+	// r := prometheus.NewRegistry()
+	r := prometheus.DefaultRegisterer.(*prometheus.Registry)
+	// r.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
+	r.MustRegister(version.NewCollector(constants.Loki))
+	// register collector with additional metrics
+	r.Unregister(collectors.NewGoCollector())
+	r.MustRegister(collectors.NewGoCollector(
+		collectors.WithGoCollectorRuntimeMetrics(collectors.MetricsAll),
+	))
+
 	loki := &Loki{
 		Cfg:                 cfg,
-		ClientMetrics:       storage.NewClientMetrics(),
-		deleteClientMetrics: deletion.NewDeleteRequestClientMetrics(prometheus.DefaultRegisterer),
+		ClientMetrics:       storage.NewClientMetrics(r),
+		deleteClientMetrics: deletion.NewDeleteRequestClientMetrics(r),
 		Codec:               queryrange.DefaultCodec,
+		Registerer:          r,
 	}
 	analytics.Edition("oss")
 	loki.setupAuthMiddleware()
@@ -479,6 +494,11 @@ func (t *Loki) ListTargets() {
 			}
 		}
 	}
+}
+
+func (t *Loki) Prepare() error {
+	_, err := t.ModuleManager.InitModuleServices(t.Cfg.Target...)
+	return err
 }
 
 // Run starts Loki running, and blocks until a Loki stops.

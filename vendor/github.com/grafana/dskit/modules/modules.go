@@ -133,6 +133,7 @@ func (m *Manager) initModule(name string, initMap map[string]bool, servicesMap m
 		var serv services.Service
 
 		if mod.initFn != nil {
+			fmt.Println("initialize", name, n, mod.targetable, mod.userVisible)
 			s, err := mod.initFn()
 			if err != nil {
 				return errors.Wrap(err, fmt.Sprintf("error initialising module: %s", n))

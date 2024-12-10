@@ -148,7 +148,7 @@ type BlobStorageMetrics struct {
 }
 
 // NewBlobStorageMetrics creates the blob storage metrics struct and registers all of it's metrics.
-func NewBlobStorageMetrics() BlobStorageMetrics {
+func NewBlobStorageMetrics(r prometheus.Registerer) BlobStorageMetrics {
 	b := BlobStorageMetrics{
 		requestDuration: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Namespace: constants.Loki,
@@ -164,16 +164,16 @@ func NewBlobStorageMetrics() BlobStorageMetrics {
 			Help:      "Total bytes downloaded from Azure Blob Storage.",
 		}),
 	}
-	prometheus.MustRegister(b.requestDuration)
-	prometheus.MustRegister(b.egressBytesTotal)
+	r.MustRegister(b.requestDuration)
+	r.MustRegister(b.egressBytesTotal)
 	return b
 }
 
 // Unregister unregisters the blob storage metrics with the prometheus default registerer, useful for tests
 // where we frequently need to create multiple instances of the metrics struct, but not globally.
-func (bm *BlobStorageMetrics) Unregister() {
-	prometheus.Unregister(bm.requestDuration)
-	prometheus.Unregister(bm.egressBytesTotal)
+func (bm *BlobStorageMetrics) Unregister(r prometheus.Registerer) {
+	r.Unregister(bm.requestDuration)
+	r.Unregister(bm.egressBytesTotal)
 }
 
 // BlobStorage is used to interact with azure blob storage for setting or getting time series chunks.
